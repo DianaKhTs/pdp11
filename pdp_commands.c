@@ -67,11 +67,12 @@ struct Argument get_mr(word w){
     case 3:         
         res.adr = w_read(reg[r]);  
         res.val = w_read(res.adr);
-        reg[r] += 2;                
+       reg[r] += 2;                
         
         if (r == 7)
             trace(TRACE, "#%o ", res.val);
         else
+           
             trace(TRACE, "@(R%d)+ ", r);
         break;
       default:
@@ -109,6 +110,7 @@ Command parse_cmd(word w){
     pc += 2;
     dd = get_mr(w);
     ss = get_mr(w>>6);
+    
     
     
     for (int i = 0; i < 3;i++){
