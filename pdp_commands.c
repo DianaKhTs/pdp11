@@ -1,5 +1,6 @@
 
 #include "mem.c"
+#include <string.h>
 #include "log.c"
 #include <stdlib.h>
 #define pc reg[7]
@@ -63,7 +64,16 @@ struct Argument get_mr(word w){
         else
             trace(TRACE, "(R%d)+ ", r);
         break;
-    
+    case 3:         
+        res.adr = w_read(reg[r]);  
+        res.val = w_read(res.adr);
+        reg[r] += 2;                
+        
+        if (r == 7)
+            trace(TRACE, "#%o ", res.val);
+        else
+            trace(TRACE, "@(R%d)+ ", r);
+        break;
       default:
         trace(ERROR, "Mode %d not implemented yet!\n", mod);
         exit(1);
@@ -86,48 +96,77 @@ void do_mov(){
 }
 void do_nothing(){}
 
-void f(word w){
+word read_cmd(){
+    word w = w_read(pc);
+    trace(TRACE, "%06o %06o: ", pc, w);
+    return w;
+
+}
+    
+
+Command parse_cmd(word w){
+    Command cmd;
+    pc += 2;
+    dd = get_mr(w);
+    ss = get_mr(w>>6);
+    
+    
     for (int i = 0; i < 3;i++){
         if ((w & command[i].mask) == command[i].opcode) {
             trace(TRACE, "%s\n", command[i].name);
-            command[i].do_command();
-            return;
+            //command[i].do_command();
+            return command[i];
         }
+        
     }
-    trace(INFO, "unknown\n");
-    do_nothing();
-
-
+    exit(0);
+    //trace(INFO, "unknown\n");
+    //do_nothing();
+    //return ;
 }
-    
-
-
 void run()
 {
-    // следующее слово будем читать по адресу 1000 (восьмеричное)
-    
-   
-    word w;     // текущее слово, которое содержит команду
-    // главный цикл выполнения программы
     load_data();
+    Command cmd;
     while(1) {
-        // читаем текущее слово
-        w = w_read(pc);
-        get_mr(w);
-        // печатаем адрес и слово по этому адресу, как в листинге
-        trace(TRACE, "%06o %06o: ", pc, w);
-        // pc сразу же указывает на следующее неразобранное слово
-        pc += 2;
-        f(w);
-        // тут будем искать какая команда закодирована в слове w
-        // ...
-
-
+        cmd = parse_cmd(read_cmd()); 
+        cmd.do_command();            
     }
+    
 }
 
-int main(){
+
+
+
+
+int main2(){
     log_level = TRACE;
-   run();
+    run();
+    return 0;
+}
+
+
+int main1 (int argc, char *argv[])
+{
+    // если аргументов нет, программа работать не может
+    if (argc == 1) {
+        usage(argv[0]);
+        exit(1);
+    }
+    // имя файла - последний аргумент
+    const char * filename = argv[argc-1];
+
+
+    // ключ -t значит, что trace=1
+    char trace = 0;
+    if (argc == 3 && 0 == strcmp("-t", argv[1]))
+        trace = 1;
+
+
+    // тут дальнейшая осмысленная часть программы ....
+    log_level = TRACE;
+     run();
+
+    return 0;
 }
 
