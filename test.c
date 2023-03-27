@@ -295,37 +295,79 @@ void test_mode2_reg_not_7(){
     assert(mem[reg[5]] == 90);
     trace(TRACE, " ... OK\n");
 }
-/*
-void test_mode3(){
-     trace(TRACE, __FUNCTION__);
-    reg[4] = 0206;    // dd
-    reg[5] = 0200;  // ss
+
+void test_mode3_reg_not_7(){
+    trace(TRACE, __FUNCTION__);
+    reg[3] = 0100;    // ss
+    reg[5] = 0200;  // dd
    
-    w_write(0202,90);
-    w_write(reg[4], 18);
     w_write(reg[5], 34);
 
+    w_write(reg[3],0204);
+    w_write(0204,50);
 
-    Command cmd = parse_cmd(012514);
-    assert(ss.val == 34);
-    assert(ss.adr == 0200);
-    assert(dd.val == 18);
-    assert(dd.adr == 0206);
+    w_write(0102, 89);
+   // w_write(mem[reg[3]], 0202);
+
+
+    Command cmd = parse_cmd(013315);
+    assert(dd.val == 34);
+    assert(dd.adr == 0200);
+    assert(ss.val == 50);
+    assert(ss.adr == 0204);
 
 
     cmd.do_command();
 
 
 
-   //check mode 2
-    assert(reg[5] = 0202);
+   //check mode 3
+    assert(reg[5] = 0200);
 
-    assert(mem[reg[4]] == 34);
-    assert(mem[reg[5]] == 90);
+    assert(reg[3] == 0102);
+    assert(mem[reg[3]] == 89);
+
+    assert(mem[reg[5]] == 50);
     trace(TRACE, " ... OK\n");
 }
+
+void test_mode3_reg_7(){
+    trace(TRACE, __FUNCTION__);
+    reg[7] = 0104;   // ss
+    reg[5] = 0200;  // dd
+   
+    w_write(reg[5], 34);
+
+    w_write(reg[7],0202);
+    w_write(0202,50);
+    w_write(0106,89);
+
+
+    pc-=2;
+    Command cmd = parse_cmd(013715);
+   
+    assert(dd.val == 34);
+    assert(dd.adr == 0200);
+   assert(ss.val == 50);
+   assert(ss.adr == 0202);
+    
+
+
+    cmd.do_command();
+
+
+
+   //check mode 3
+    assert(reg[5] = 0200);
+
+  // assert(reg[7] == 0106);
+    assert(mem[reg[7]] == 89);
+
+    assert(mem[reg[5]] == 50);
+    trace(TRACE, " ... OK\n");
 }
-*/
+
+
 
 int main()
 {
@@ -339,7 +381,8 @@ int main()
    //test_mode1_3();
    //test_mode2();
    //test_mode2_reg_not_7();
-
+   // test_mode3_reg_not_7();
+   // test_mode3_reg_7();
    cleanup();
 
     return 0;
