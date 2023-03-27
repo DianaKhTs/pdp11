@@ -135,8 +135,8 @@ void test_mode0()
     reg[5] = 34;    // ss
     Command cmd = parse_cmd(0010503);
     cmd.do_command();
-    assert(reg[3] = 34);
-    assert(reg[5] = 34);
+    assert(reg[3] == 34);
+    assert(reg[5] == 34);
     trace(TRACE, " ... OK\n");
 }
 
@@ -150,7 +150,7 @@ void test_mode1_toreg()
     reg[5] = 0200;  // ss
     w_write(0200, 34);
 
-
+    // mov (r5), r3
     Command cmd = parse_cmd(011503);
 
 
@@ -163,9 +163,9 @@ void test_mode1_toreg()
     cmd.do_command();
 
 
-    assert(reg[3] = 34);
+    assert(reg[3] == 34);
     // проверяем, что значение регистра не изменилось
-    assert(reg[5] = 0200);
+    assert(reg[5] == 0200);
 
 
     trace(TRACE, " ... OK\n");
@@ -194,9 +194,9 @@ void test_mode1_2()
 
     cmd.do_command();
 
-    assert(reg[3] =  0204);
+    assert(reg[3] ==  0204);
     // проверяем, что значение регистра не изменилось
-    assert(reg[5] = 0200);
+    assert(reg[5] == 0200);
 // проверка mov
     assert(mem[reg[3]] == 34);
     assert(mem[reg[5]] == 34);
@@ -230,7 +230,7 @@ void test_mode1_3()
 
 
     // проверяем, что значение регистра не изменилось
-    assert(reg[5] = 0200);
+    assert(reg[5] == 0200);
 
     assert(reg[4] == 34);
    assert(mem[reg[5]] == 34);
@@ -246,7 +246,7 @@ void test_mode2_reg7(){
    
     w_write(0202,9);
 
-    w_write(reg[7], 34);
+   // w_write(reg[7], 34);
 
 
     Command cmd = parse_cmd(012704);
@@ -367,22 +367,120 @@ void test_mode3_reg_7(){
     trace(TRACE, " ... OK\n");
 }
 
+void test_mode4_1()
+{
+    trace(TRACE, __FUNCTION__);
 
 
-int main()
+    // setup
+    reg[3] = 0102;    // dd
+    reg[5] = 8;  // ss
+    w_write(0100, 5);
+
+
+    Command cmd = parse_cmd(014305);
+
+
+    assert(ss.val == 5);
+    assert(ss.adr == 0100);
+    assert(dd.val == 8);
+    assert(dd.adr == 5);
+
+
+    cmd.do_command();
+
+
+   
+    // check mod 4
+    assert(reg[5] == 5);
+    assert(reg[3]==0100);
+
+
+    trace(TRACE, " ... OK\n");
+}
+
+void test_mode4_2()
+{
+    trace(TRACE, __FUNCTION__);
+
+
+    // setup
+    reg[3] = 0102;    // dd
+    reg[5] = 0104;  // ss
+    w_write(0100, 5);
+    w_write(0102, 9);
+
+
+    Command cmd = parse_cmd(014345);
+
+
+    assert(ss.val == 5);
+    assert(ss.adr == 0100);
+    assert(dd.val == 9);
+    assert(dd.adr == 0102);
+
+
+    cmd.do_command();
+
+
+   
+    // check mod 4
+    assert(reg[3]==0100);
+    assert(reg[5]==0102);
+
+
+    trace(TRACE, " ... OK\n");
+}
+
+void test_mode5_1(){
+    trace(TRACE, __FUNCTION__);
+
+
+    // setup
+    reg[3] = 0102;    // dd
+    reg[5] = 0104;  // ss
+    w_write(0100, 0206);
+    w_write(0206, 5);
+    w_write(0104, 9);
+
+
+    Command cmd = parse_cmd(015315);
+
+
+    assert(ss.val == 5);
+    assert(ss.adr == 0206);
+    assert(dd.val == 9);
+    assert(dd.adr == 0104);
+
+
+    cmd.do_command();
+
+
+   
+    // check mod 4
+    assert(reg[3]==0100);
+    assert(reg[5]==0104);
+
+
+    trace(TRACE, " ... OK\n");
+}
+int main2()
 {
     //test_mem();
     log_level = TRACE;
    //test_parse_mov();
    // test_mode0();
-   // test_mov();
-    //test_mode1_toreg();
-  // test_mode1_2();
+    //test_mov();
+   // test_mode1_toreg();
+   //test_mode1_2();
    //test_mode1_3();
-   //test_mode2();
-   //test_mode2_reg_not_7();
-   // test_mode3_reg_not_7();
-   // test_mode3_reg_7();
+
+   //test_mode2_reg7();
+  // test_mode3_reg_not_7();
+   //test_mode3_reg_7();
+  // test_mode4();
+  //test_mode4_2();
+  //test_mode5_1();
    cleanup();
 
     return 0;
