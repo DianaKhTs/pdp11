@@ -1,6 +1,11 @@
 
-#include "pdp.c"
+#include "pdp_commands.c"
+#include <assert.h>
+#include <string.h>
 
+void cleanup(){
+    memset(mem,0,MEMSIZE);
+}
 void test_mem()
 {
     address a;
@@ -11,7 +16,7 @@ void test_mem()
     // пишем байт, читаем байт
     
     fprintf(stderr, "Пишем и читаем байт по четному адресу\n");
-    a = 0;
+    a = 100;
     b0 = 0x12;
     b_write(a, b0);
     bres = b_read(a);
@@ -20,7 +25,7 @@ void test_mem()
     assert(b0 == bres);
 
    fprintf(stderr, "Пишем и читаем байт по нечетному адресу\n");
-    a = 1;
+    a = 10;
     b0 = 0x13;
     b_write(a, b0);
     bres = b_read(a);
@@ -32,7 +37,7 @@ void test_mem()
 
     // пишем слово, читаем слово
     fprintf(stderr, "Пишем и читаем слово\n");
-    a = 2;        // другой адрес
+    a = 20;        // другой адрес
     w = 0x3456;
     w_write(a, w);
     wres = w_read(a);
@@ -43,7 +48,7 @@ void test_mem()
 
     // пишем 2 байта, читаем 1 слово
     fprintf(stderr, "Пишем 2 байта, читаем слово\n");
-    a = 4;        // другой адрес
+    a = 40;        // другой адрес
     w = 0xa1b2;
     // little-endian, младшие разряды по меньшему адресу
     b0 = 0xb2;
@@ -55,7 +60,7 @@ void test_mem()
     fprintf(stderr, "a=%06o b1=%02hhx b0=%02hhx wres=%04x\n\n", a, b1, b0, wres);
     assert(w == wres);
 
-    a = 8;        // другой адрес
+    a = 80;        // другой адрес
     w = 0x00b2;
     // little-endian, младшие разряды по меньшему адресу
     b0 = 0xb2;
@@ -68,10 +73,10 @@ void test_mem()
     assert(w == wres);
 
     a = 11;        // другой адрес
-    w = 0xa7f5;
+    w = 0xa7f3;
     // little-endian, младшие разряды по меньшему адресу
     b0 = 0xa7;
-    b1 = 0xf5;
+    b1 = 0xf3;
     b_write(a, b0);
     b_write(a-1, b1);
     wres = w_read(a-1);
@@ -81,7 +86,7 @@ void test_mem()
 
     // write world, read 2 bytes
     fprintf(stderr, "Пишем слово, читаем 2 байта\n");
-    a = 6;        
+    a = 60;        
     w = 0xa3b4;
     byte b1t = 0xa3;
     byte b0t = 0xb4;
@@ -99,10 +104,243 @@ void test_mem()
     
 
 }
+
+void test_parse_mov()
+{
+    trace(TRACE, __FUNCTION__);
+    Command cmd = parse_cmd(010603);
+    assert(strcmp(cmd.name, "mov")==0);
+    trace(TRACE, " ... OK\n");
+}
+// тест, что мы разобрали правильно аргументы ss и dd в mov R5, R3
+void test_mode0()
+{
+    trace(TRACE, __FUNCTION__);
+    reg[3] = 12;    // dd
+    reg[5] = 34;    // ss
+    Command cmd = parse_cmd(010503);
+    //printf("%o %d\n",ss.adr, ss.val );
+    //printf("%o %d",dd.adr, dd.val );
+    assert(ss.val == 34);
+    assert(ss.adr == 5);
+    assert(dd.val == 12);
+    assert(dd.adr == 3);
+    trace(TRACE, " ... OK\n");
+}
+// тест, что mov и мода 0 работают верно в mov R5, R3
+ void test_mov()
+{
+    trace(TRACE, __FUNCTION__);
+    reg[3] = 12;    // dd
+    reg[5] = 34;    // ss
+    Command cmd = parse_cmd(0010503);
+    cmd.do_command();
+    assert(reg[3] = 34);
+    assert(reg[5] = 34);
+    trace(TRACE, " ... OK\n");
+}
+
+void test_mode1_toreg()
+{
+    trace(TRACE, __FUNCTION__);
+
+
+    // setup
+    reg[3] = 12;    // dd
+    reg[5] = 0200;  // ss
+    w_write(0200, 34);
+
+
+    Command cmd = parse_cmd(011503);
+
+
+    assert(ss.val == 34);
+    assert(ss.adr == 0200);
+    assert(dd.val == 12);
+    assert(dd.adr == 3);
+
+
+    cmd.do_command();
+
+
+    assert(reg[3] = 34);
+    // проверяем, что значение регистра не изменилось
+    assert(reg[5] = 0200);
+
+
+    trace(TRACE, " ... OK\n");
+}
+void test_mode1_2()
+{
+    trace(TRACE, __FUNCTION__);
+
+
+    // setup
+    reg[3] = 0204;    // dd
+    reg[5] = 0200;  // ss
+    w_write(0200,  34);
+    w_write(0204,  12);
+
+
+    Command cmd = parse_cmd(011513);
+
+
+    assert(ss.val == 34);
+    assert(ss.adr == 0200);
+    assert(dd.val == 12);
+    assert(dd.adr ==  0204);
+
+
+
+    cmd.do_command();
+
+    assert(reg[3] =  0204);
+    // проверяем, что значение регистра не изменилось
+    assert(reg[5] = 0200);
+// проверка mov
+    assert(mem[reg[3]] == 34);
+    assert(mem[reg[5]] == 34);
+
+
+    trace(TRACE, " ... OK\n");
+}
+
+void test_mode1_3()
+{
+    trace(TRACE, __FUNCTION__);
+
+
+    // setup
+    reg[4] = 18;    // dd
+    reg[5] = 0200;  // ss
+    w_write(reg[5], 34);
+
+   
+    Command cmd = parse_cmd(011504);
+  
+
+   assert(ss.val == 34);
+    assert(ss.adr == 0200);
+    assert(dd.val == 18);
+    assert(dd.adr == 4);
+
+
+    cmd.do_command();
+
+
+
+    // проверяем, что значение регистра не изменилось
+    assert(reg[5] = 0200);
+
+    assert(reg[4] == 34);
+   assert(mem[reg[5]] == 34);
+
+
+    trace(TRACE, " ... OK\n");
+}
+
+void test_mode2_reg7(){
+    trace(TRACE, __FUNCTION__);
+    reg[4] = 18;    // dd
+    reg[7] = 0200;  // ss
+   
+    w_write(0202,9);
+
+    w_write(reg[7], 34);
+
+
+    Command cmd = parse_cmd(012704);
+    assert(ss.val == 9);
+    assert(ss.adr == 0202);
+    assert(dd.val == 18);
+    assert(dd.adr == 4);
+
+
+    cmd.do_command();
+
+
+
+   //check mode 2
+    assert(reg[7] = 0202);
+
+    assert(reg[4] == 9);
+    assert(mem[reg[7]] == 9);
+    trace(TRACE, " ... OK\n");
+}
+void test_mode2_reg_not_7(){
+    trace(TRACE, __FUNCTION__);
+    reg[4] = 0206;    // dd
+    reg[5] = 0200;  // ss
+   
+    w_write(0202,90);
+    w_write(reg[4], 18);
+    w_write(reg[5], 34);
+
+
+    Command cmd = parse_cmd(012514);
+    assert(ss.val == 34);
+    assert(ss.adr == 0200);
+    assert(dd.val == 18);
+    assert(dd.adr == 0206);
+
+
+    cmd.do_command();
+
+
+
+   //check mode 2
+    assert(reg[5] = 0202);
+
+    assert(mem[reg[4]] == 34);
+    assert(mem[reg[5]] == 90);
+    trace(TRACE, " ... OK\n");
+}
+/*
+void test_mode3(){
+     trace(TRACE, __FUNCTION__);
+    reg[4] = 0206;    // dd
+    reg[5] = 0200;  // ss
+   
+    w_write(0202,90);
+    w_write(reg[4], 18);
+    w_write(reg[5], 34);
+
+
+    Command cmd = parse_cmd(012514);
+    assert(ss.val == 34);
+    assert(ss.adr == 0200);
+    assert(dd.val == 18);
+    assert(dd.adr == 0206);
+
+
+    cmd.do_command();
+
+
+
+   //check mode 2
+    assert(reg[5] = 0202);
+
+    assert(mem[reg[4]] == 34);
+    assert(mem[reg[5]] == 90);
+    trace(TRACE, " ... OK\n");
+}
+}
+*/
+
 int main()
 {
     //test_mem();
-    //load_data();
-    load_file("data.txt");
+    log_level = TRACE;
+   //test_parse_mov();
+   // test_mode0();
+   // test_mov();
+    //test_mode1_toreg();
+  // test_mode1_2();
+   //test_mode1_3();
+   //test_mode2();
+   //test_mode2_reg_not_7();
+
+   cleanup();
+
     return 0;
 }
