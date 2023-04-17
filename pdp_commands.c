@@ -15,13 +15,15 @@ void do_sob();
 void do_br();
 void do_bpl();
 void do_beq();
+void do_tstb();
 void do_cmp();
 void do_clr();
 // flags
-void set_N_Z(word ); 
+void set_N_Z(word,char ); 
 void set_C(word , word);
 
-
+word ostat = 0177564  ;
+word odata = 0177566 ;
 
 
 typedef struct {
@@ -48,7 +50,10 @@ Command command[] = {
     {0177700,000700,"br",do_br,HAS_NN},
     {0177700,0001400,"beq",do_beq,HAS_NN},
     {0177700,0001700,"beq",do_beq,HAS_NN},
+    {0177700,0100000,"bpl",do_bpl,HAS_NN},
+    {0177700,0100300,"bpl",do_bpl,HAS_NN},
     {0170000,0020000,"cmp",do_cmp,HAS_SS | HAS_DD},
+    {0177700,0105700,"tstb",do_tstb,HAS_DD},
     {0177777, 0000000,"halt", do_halt,NO_PARAMS},
     {0177000,0077000,"sob",do_sob,HAS_NN|HAS_R},
     {0177000,0005000,"clr",do_clr,HAS_R},
@@ -71,6 +76,9 @@ struct Argument get_nn(word w){
     if ((w&0700)==0700){
         
         shift = (w & 0777)-0400;
+    }
+    else if ((w&0100700)==0100300){
+        shift = w & 0777;
     }
     else{
          shift = w & 077;
@@ -124,8 +132,15 @@ struct Argument get_mr(word w){ // get mode and num of reg
         res.val = w_read(res.adr);
         reg[r] += 2;                
         
-        if (r == 7)
-            trace(TRACE, "@#%o ", res.val);
+        if (r == 7){
+            if (res.adr == odata){
+               
+               
+            }
+            else{
+                trace(TRACE, "@#%o ", res.adr);
+            }
+        }
         else
            
             trace(TRACE, "@(R%d)+ ", r);
@@ -177,19 +192,22 @@ void do_halt()
 void do_add(){
     word res = ss.val + dd.val;
     w_write(dd.adr, res);
-    set_N_Z(res);
+    set_N_Z(res,15);
     set_C(ss.val, dd.val);
 }
 void do_mov(){
     word res = ss.val;
     w_write(dd.adr, ss.val);
-    set_N_Z(res);
+    set_N_Z(res,15);
     psw = psw&(~1); //C flag setted
 }
 void do_movb(){
     byte res = (byte)ss.val;
     b_write(dd.adr, (byte)ss.val);
-    set_N_Z(res);
+    
+    if (dd.adr == odata)
+        printf("%c",mem[dd.adr]);
+    set_N_Z(res,15);
 }
 void do_nothing(){}
 
@@ -201,8 +219,13 @@ void do_sob(){
 
 void do_cmp(){
     word res = ss.val-dd.val;
-    set_N_Z(res);
+    set_N_Z(res,15);
     set_C(ss.val,(-dd.val));
+}
+void do_tstb(){
+    psw=0;
+    set_N_Z(dd.val,7);
+  //  set_C(dd.val);
 }
 void do_br(){
     pc = pc + 2*nn.val;
@@ -229,9 +252,9 @@ word read_cmd(){
 }
 
 //flags
-void set_N_Z(word res){
+void set_N_Z(word res,char b){
     psw = 0;
-    if((res>>15))
+    if((res>>b))
         psw = psw|(1<<3);
     
     else if (!(res|0)){
@@ -276,7 +299,7 @@ Command parse_cmd(word w){
                  
             
             //command[i].do_command();
-            printf("\n");
+            
 
             return command[i];
 
@@ -303,7 +326,10 @@ void run()
 
 
 int main(){
-    log_level = TRACE;
+    w_write(ostat ,0177777);
+   
+    //log_level = TRACE;
+   log_level = INFO;
     run();
     return 0;
 }
