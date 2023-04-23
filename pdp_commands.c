@@ -91,6 +91,7 @@ struct Argument get_mr(word w){ // get mode and num of reg
     struct Argument res;
     int r = w & 7;
     int mod = (w >> 3) & 7;
+    word sh;
     switch (mod)
 
 
@@ -173,6 +174,35 @@ struct Argument get_mr(word w){ // get mode and num of reg
            
             trace(TRACE, "@-(R%d) ", r);
         break;
+    case 6:
+        sh = w_read(pc);
+        pc+=2;
+        res.adr = reg[r];
+        res.adr = (res.adr + sh)&0xffff;
+        res.val = mem[res.adr];
+        if (r==7)
+            trace(TRACE, "#%o ", res.val);
+        else
+           trace(TRACE, " %d(R%d) ", sh, r);
+
+        break;
+    
+    case 7:
+        sh = w_read(pc);
+        pc+=2;
+        res.adr = reg[r];
+        res.adr = (res.adr + sh)&0xffff;
+        res.adr = mem[res.adr];
+        res.val = mem[res.adr];
+        if (r==7)
+            trace(TRACE, "@#%o ", res.val);
+        else
+           trace(TRACE, " @%d(R%d) ", sh, r);
+
+        break;
+
+
+        
 
 
       default:
@@ -300,7 +330,7 @@ Command parse_cmd(word w){
             
             //command[i].do_command();
             
-
+            printf("\n");
             return command[i];
 
         }
@@ -325,7 +355,7 @@ void run()
 
 
 
-int main(){
+int main3(){
     w_write(ostat ,0177777);
    
     //log_level = TRACE;
