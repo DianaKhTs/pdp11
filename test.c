@@ -464,10 +464,207 @@ void test_mode5_1(){
 
     trace(TRACE, " ... OK\n");
 }
-int main2()
+
+void test_mode6(){
+    trace(TRACE, __FUNCTION__);
+    printf(" ");
+
+    // setup
+    pc = 01000;
+    reg[3] = 0102;    // dd
+    reg[1] = 0104;  // ss
+    w_write(01002, 04);
+    w_write(0106, 015);
+
+
+    Command cmd = parse_cmd(016301);
+    assert(ss.adr==0106);
+    assert(ss.val == 015);
+    assert(dd.adr == 1);
+
+
+    assert(pc == 01004);
+   
+
+    cmd.do_command();
+    assert(reg[1]==015);
+
+    /// reg 7 
+    printf(" ");
+    pc = 01006;  
+    reg[1] = 0104; 
+    w_write(01010, -0606);
+    w_write(0204, 015);
+
+
+    cmd = parse_cmd(016701);
+    //assert(ss.adr==0204);
+    assert(ss.adr==0204);
+    assert(ss.val == 015);
+    assert(dd.adr == 1);
+
+
+    assert(pc == 01012);
+   
+
+    cmd.do_command();
+    assert(reg[1]==015);
+   
+
+
+   
+
+
+
+    trace(TRACE, " ... OK\n");
+}
+
+void test_mode7(){
+    trace(TRACE, __FUNCTION__);
+    printf(" ");
+
+    // setup
+    pc = 01006;
+    reg[3] = 0200;    // dd
+    reg[1] = 0104;  // ss
+    w_write(01010, 04);
+    w_write(0204, 0100);
+    w_write(0100, 05);
+
+
+    Command cmd = parse_cmd(017301);
+    assert(ss.adr==0100);
+    assert(ss.val == 05);
+    assert(dd.adr == 1);
+
+
+    assert(pc == 01012);
+   
+
+    cmd.do_command();
+    assert(reg[1]==05);
+
+    /// reg 7 
+    printf(" ");
+    pc = 01006;  
+    reg[1] = 0104; 
+    w_write(01010, -0606);
+    w_write(0204,0100);
+    w_write(0100, 05);
+
+
+    cmd = parse_cmd(017701);
+    
+    assert(ss.adr==0100);
+    assert(ss.val == 05);
+    assert(dd.adr == 1);
+
+
+    assert(pc == 01012);
+   
+
+    cmd.do_command();
+    assert(reg[1]==05);
+   
+
+
+   
+
+
+
+    trace(TRACE, " ... OK\n");
+}
+void test_flag_N()
 {
-    //test_mem();
+    trace(TRACE, __FUNCTION__);
+    reg[3] = 2;    // dd
+    reg[5] = -6;    // ss
+    Command cmd = parse_cmd(060503);
+    cmd.do_command();
+    assert(psw == (1<<3));
+
+    reg[5] = 4;
+    cmd = parse_cmd(010503);
+    cmd.do_command();
+    assert((psw>>3)==0);
+    
+    reg[5] = -100;
+    cmd = parse_cmd(010503);
+    cmd.do_command();
+    assert(psw == (1<<3));
+
+    trace(TRACE, " ... OK\n");
+   
+   
+}
+
+
+
+void test_flag_Z()
+{
+    trace(TRACE, __FUNCTION__);
+    reg[3] = 8;    // dd
+    reg[5] = -8;    // ss
+    Command cmd = parse_cmd(060503);
+    cmd.do_command();
+    assert(psw == (1<<2));
+
+    reg[3] = 8;   
+    reg[5] = 9;
+    cmd = parse_cmd(010503);
+    cmd.do_command();
+    assert((psw>>2)==0);
+
+    reg[3] = 8;   
+    reg[5] = 0;
+    cmd = parse_cmd(010503);
+    cmd.do_command();
+    assert(psw == (1<<2));
+
+    trace(TRACE, " ... OK\n");
+
+
+    
+}
+void test_flag_C(){
+    trace(TRACE, __FUNCTION__);
+    reg[3] = -1;   
+    reg[5] = -1;
+    Command cmd = parse_cmd(060503);
+    cmd.do_command();
+    assert(psw == (1<<3 | 1)); // C = 1; N = 1
+
+    reg[3] = 1;   
+    reg[5] = -1;
+    cmd = parse_cmd(060503);
+    cmd.do_command();
+    assert(psw == (1<<2 ));
+
+    trace(TRACE, " ... OK\n");
+}
+void test_br(){
+    trace(TRACE, __FUNCTION__);
+    pc  = 0100;   
+    Command cmd = parse_cmd(000402);
+    cmd.do_command();
+    assert(pc == 0106);
+
+    trace(TRACE, __FUNCTION__);
+    pc  = 0106;   
+   cmd = parse_cmd(000774);
+    cmd.do_command();
+    assert(pc == 0100);
+}
+int main()
+{
+   
     log_level = TRACE;
+    test_br();
+    //test_flag_N();
+    //test_flag_Z();
+    //test_flag_C();
+
+    //test_mem();
    //test_parse_mov();
    // test_mode0();
     //test_mov();
@@ -481,6 +678,7 @@ int main2()
   // test_mode4();
   //test_mode4_2();
   //test_mode5_1();
+  test_mode7();
    cleanup();
 
     return 0;
