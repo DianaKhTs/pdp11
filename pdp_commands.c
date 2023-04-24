@@ -3,8 +3,9 @@
 #include <string.h>
 #include "log.c"
 #include <stdlib.h>
-#define pc reg[7]
 
+
+// commands
 typedef void (*do_commandp)(void);
 void do_add();
 void do_mov();
@@ -17,13 +18,17 @@ void do_bpl();
 void do_beq();
 void do_tstb();
 void do_cmp();
+void do_jsr();
+void do_rts();
 void do_clr();
 // flags
 void set_N_Z(word,char ); 
 void set_C(word , word);
 
+// status of device
 word ostat = 0177564  ;
 word odata = 0177566 ;
+
 
 
 typedef struct {
@@ -39,7 +44,7 @@ typedef struct {
 struct Argument {
     word val;     
     address adr;    
-} ss, dd, r,nn;
+} ss, dd, re, rl,nn;
 
 
 Command command[] = {
@@ -56,10 +61,13 @@ Command command[] = {
     {0177700,0105700,"tstb",do_tstb,HAS_DD},
     {0177777, 0000000,"halt", do_halt,NO_PARAMS},
     {0177000,0077000,"sob",do_sob,HAS_NN|HAS_R},
-    {0177000,0005000,"clr",do_clr,HAS_R},
+    {0177000,0005000,"clr",do_clr,HAS_DD},
+    {0177000,0004000,"jsr",do_jsr,HAS_R|HAS_DD},
+    {0177770,0000200,"rts",do_rts,HAS_R_LAST},
     {0000000, 0000000,"unknown", do_nothing,NO_PARAMS}
     
 };
+
 
 struct Argument get_r(word w){
     struct Argument res;
@@ -70,7 +78,9 @@ struct Argument get_r(word w){
     return res;
 
 }
-struct Argument get_nn(word w){
+
+
+struct Argument get_nn(word w){ // get num of shift
     struct Argument res;
     char shift;
     if ((w&0700)==0700){
@@ -147,7 +157,7 @@ struct Argument get_mr(word w){ // get mode and num of reg
             trace(TRACE, "@(R%d)+ ", r);
         break;
     case 4:
-    
+        
         if(w&IS_BYTE_C && r != 6 && r!= 7)
             reg[r]--;
         
@@ -181,7 +191,7 @@ struct Argument get_mr(word w){ // get mode and num of reg
         res.adr = (res.adr + sh)&0xffff;
         res.val = mem[res.adr];
         if (r==7)
-            trace(TRACE, "#%o ", res.val);
+            trace(TRACE, "#%o ", res.adr);
         else
            trace(TRACE, " %d(R%d) ", sh, r);
 
@@ -212,6 +222,9 @@ struct Argument get_mr(word w){ // get mode and num of reg
     }
     return res;
 }
+
+
+
 void do_halt()
 {
     reg_dump();
@@ -224,6 +237,7 @@ void do_add(){
     w_write(dd.adr, res);
     set_N_Z(res,15);
     set_C(ss.val, dd.val);
+    
 }
 void do_mov(){
     word res = ss.val;
@@ -237,12 +251,12 @@ void do_movb(){
     
     if (dd.adr == odata)
         printf("%c",mem[dd.adr]);
-    set_N_Z(res,15);
+    set_N_Z(res,7);
 }
 void do_nothing(){}
 
 void do_sob(){
-    if (--reg[r.adr] != 0)
+    if (--reg[re.adr] != 0)
     pc = pc - 2*nn.val;
     trace(TRACE, "%o\n", pc);
 }
@@ -261,18 +275,33 @@ void do_br(){
     pc = pc + 2*nn.val;
     trace(TRACE, "%o\n", pc);
 }
-void do_bpl(){
+void do_bpl(){  // check if N flag isnt negative and go to branch
     if((psw&(1<<3))==0){
         do_br();
     }
 }
-void do_beq(){
+void do_beq(){  // check if Z flag isnt 0
     if(psw&(1<<2)){
         do_br();
     }
 }
+
+void do_jsr(){ 
+    sp-=2;
+    w_write(sp, reg[re.adr]);
+    reg[re.adr] = pc;
+    pc = dd.adr;
+
+}
+
+void do_rts(){
+    pc = reg[rl.adr];
+    reg[rl.adr] = w_read(sp);
+    sp+=2;
+}
 void do_clr(){
-    r.val = 0;
+    dd.val = 0;
+
 }
 word read_cmd(){
     word w = w_read(pc);
@@ -281,7 +310,7 @@ word read_cmd(){
 
 }
 
-//flags
+//set flags functions
 void set_N_Z(word res,char b){
     psw = 0;
     if((res>>b))
@@ -300,6 +329,9 @@ void set_C(word w1, word w2){
         psw = psw|1;
     
 }
+
+
+//parse funcs
 Command parse_cmd(word w){
     Command cmd;
     pc += 2;
@@ -319,9 +351,9 @@ Command parse_cmd(word w){
             if (command[i].params & HAS_NN  )
                 nn = get_nn(w);
             if (command[i].params & HAS_R  )
-                r = get_r(w>>6);
+                re = get_r(w>>6);
             if (command[i].params & HAS_R_LAST  )
-                r = get_r(w);
+                rl = get_r(w);
                 
     
         
@@ -339,13 +371,17 @@ Command parse_cmd(word w){
     exit(0);
     
 }
+
+
 void run()
 {
     load_data();
     Command cmd;
     while(1) {
         cmd = parse_cmd(read_cmd()); 
-        cmd.do_command();   
+        cmd.do_command();
+        reg_dump();  
+        printf("\n\n"); 
               
     }
     
@@ -355,37 +391,13 @@ void run()
 
 
 
-int main3(){
+int main(){
     w_write(ostat ,0177777);
    
-    //log_level = TRACE;
-   log_level = INFO;
+   log_level = TRACE;
+  // log_level = INFO;
     run();
     return 0;
 }
 
-
-int main2 (int argc, char *argv[])
-{
-    // если аргументов нет, программа работать не может
-    if (argc == 1) {
-        usage(argv[0]);
-        exit(1);
-    }
-    // имя файла - последний аргумент
-    const char * filename = argv[argc-1];
-
-
-    // ключ -t значит, что trace=1
-    char trace = 0;
-    if (argc == 3 && 0 == strcmp("-t", argv[1]))
-        trace = 1;
-
-
-    // тут дальнейшая осмысленная часть программы ....
-    log_level = TRACE;
-     run();
-
-    return 0;
-}
 
